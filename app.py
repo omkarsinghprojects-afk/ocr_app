@@ -2,12 +2,9 @@
 OCR Web App — FastAPI Backend (Gemini API edition — FREE)
 ==========================================================
 - Upload PDF / PNG / JPG / JPEG / TIFF / BMP / WEBP from any phone or browser
-- OCR via Google Gemini API (gemini-1.5-flash) — FREE tier: 1500 requests/day
+- OCR via Google Gemini API (gemini-2.0-flash) — FREE tier
 - All results saved to SQLite
 - Download all results as Excel anytime
-
-Deploy on Render / Railway:
-  Set env vars:  GEMINI_API_KEY  and  APP_PASSWORD
 """
 
 import os
@@ -18,7 +15,6 @@ DPI            = 150
 UPLOAD_FOLDER  = "uploads"
 DB_FILE        = "ocr_results.db"
 
-import base64
 import io
 import json
 import re
@@ -38,9 +34,10 @@ except ImportError:
     print("ERROR: pip install pdf2image"); exit(1)
 
 try:
-    import google.generativeai as genai
+    from google import genai
+    from google.genai import types
 except ImportError:
-    print("ERROR: pip install google-generativeai"); exit(1)
+    print("ERROR: pip install google-genai"); exit(1)
 
 try:
     from openpyxl import Workbook
@@ -56,6 +53,8 @@ SUPPORTED_EXTENSIONS = {".pdf", ".png", ".jpg", ".jpeg", ".tiff", ".tif", ".bmp"
 app = FastAPI(title="OCR Form Scanner")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 Path(UPLOAD_FOLDER).mkdir(exist_ok=True)
+
+# ── Database ───────────────────────────────────────────
 
 def get_db():
     conn = sqlite3.connect(DB_FILE)
@@ -73,6 +72,8 @@ def init_db():
     conn.commit(); conn.close()
 
 init_db()
+
+# ── OCR ────────────────────────────────────────────────
 
 EXTRACT_PROMPT = """You are an expert data entry operator reading a scanned application form.
 Extract EVERY SINGLE field visible on this form — go top to bottom, left to right.
@@ -96,12 +97,18 @@ def image_to_bytes(image: Image.Image, max_size: int = 1600) -> bytes:
     return buf.getvalue()
 
 def gemini_ocr(image: Image.Image) -> dict:
-    genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel("gemini-1.5-flash-002")
-    img_part = {"mime_type": "image/jpeg", "data": image_to_bytes(image)}
-    response = model.generate_content(
-        [EXTRACT_PROMPT, img_part],
-        generation_config={"temperature": 0.1, "max_output_tokens": 4096},
+    client   = genai.Client(api_key=GEMINI_API_KEY)
+    img_part = types.Part.from_bytes(
+        data=image_to_bytes(image),
+        mime_type="image/jpeg"
+    )
+    response = client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=[EXTRACT_PROMPT, img_part],
+        config=types.GenerateContentConfig(
+            temperature=0.1,
+            max_output_tokens=4096
+        )
     )
     return parse_json(response.text)
 
@@ -147,6 +154,8 @@ def merge_pages(pages: list) -> dict:
             elif merged[k] != v: merged[k] = f"{to_safe(merged[k])} | {to_safe(v)}"
     return merged
 
+# ── Excel ──────────────────────────────────────────────
+
 def build_excel(rows: list) -> bytes:
     if not rows: return b""
     all_keys = ["File Name", "File Type", "Scanned At"]
@@ -186,6 +195,8 @@ def build_excel(rows: list) -> bytes:
         ws2.cell(row=r, column=2, value=val).font = Font(name="Arial")
     ws2.column_dimensions["A"].width = 20; ws2.column_dimensions["B"].width = 30
     buf = io.BytesIO(); wb.save(buf); return buf.getvalue()
+
+# ── Routes ─────────────────────────────────────────────
 
 @app.get("/", response_class=HTMLResponse)
 async def home():
@@ -243,5 +254,5 @@ async def clear_all(password: str):
     return {"status": "cleared"}
 
 if __name__ == "__main__":
-    print(f"\n{'='*50}\n  OCR Web App — http://localhost:8000\n  Password: {APP_PASSWORD}\n{'='*50}\n")
+    print(f"\n{'='*50}\n  OCR Form Scanner — http://localhost:8000\n  Password: {APP_PASSWORD}\n{'='*50}\n")
     uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=False)
