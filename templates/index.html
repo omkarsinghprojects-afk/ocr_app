@@ -259,14 +259,14 @@
       <h2>Upload a Form</h2>
 
       <div class="upload-area" id="drop-zone">
-        <input type="file" id="file-input" accept=".pdf,.png,.jpg,.jpeg,.tiff,.tif,.bmp,.webp" onchange="handleFileSelect(this)">
+        <input type="file" id="file-input" accept=".pdf,.png,.jpg,.jpeg,.tiff,.tif,.bmp,.webp,image/*,application/pdf" onchange="handleFileSelect(this)">
         <div class="upload-icon">📄</div>
         <p><strong>Tap to choose file</strong></p>
         <p>PDF, PNG, JPG, TIFF, BMP, WEBP</p>
       </div>
 
       <button class="camera-btn">
-        <input type="file" accept="image/*" capture="environment" onchange="handleFileSelect(this)">
+        <input type="file" accept="image/*,application/pdf" capture="environment" onchange="handleFileSelect(this)">
         📷 Take Photo with Camera
       </button>
 
@@ -385,7 +385,7 @@
     fd.append("password", PASSWORD);
     fd.append("file", file);
 
-    setProgress(40, "Running OCR via Claude AI — usually 10-20 seconds...");
+    setProgress(40, "Running OCR via AI — usually 10-20 seconds...");
 
     fetch("/upload", { method: "POST", body: fd })
       .then(r => r.json().then(data => ({ ok: r.ok, data })))
