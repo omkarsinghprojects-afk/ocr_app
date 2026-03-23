@@ -22,5 +22,5 @@ python-multipart==0.0.9
 aiofiles==23.2.1
 google-generativeai==0.7.2
 pdf2image==1.17.0
-Pillow==10.4.0
+Pillow==11.1.0
 openpyxl==3.1.2
