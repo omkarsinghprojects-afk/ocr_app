@@ -97,7 +97,7 @@ def image_to_bytes(image: Image.Image, max_size: int = 1600) -> bytes:
 
 def gemini_ocr(image: Image.Image) -> dict:
     genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel("gemini-1.5-flash-latest")
+    model = genai.GenerativeModel("gemini-1.5-flash-002")
     img_part = {"mime_type": "image/jpeg", "data": image_to_bytes(image)}
     response = model.generate_content(
         [EXTRACT_PROMPT, img_part],
