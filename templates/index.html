@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>OCR Form Scanner</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f0f4f8;
+    color: #1a202c;
+    min-height: 100vh;
+  }
+
+  .header {
+    background: #1F4E79;
+    color: white;
+    padding: 16px 20px;
+    text-align: center;
+  }
+  .header h1 { font-size: 20px; font-weight: 600; }
+  .header p  { font-size: 13px; opacity: 0.8; margin-top: 4px; }
+
+  .container { max-width: 600px; margin: 0 auto; padding: 20px 16px; }
+
+  /* Login */
+  #login-screen {
+    background: white;
+    border-radius: 12px;
+    padding: 32px 24px;
+    margin-top: 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  }
+  #login-screen h2 { font-size: 18px; margin-bottom: 16px; color: #1F4E79; }
+
+  input[type=password], input[type=text] {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid #cbd5e0;
+    border-radius: 8px;
+    font-size: 16px;
+    margin-bottom: 12px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus { border-color: #1F4E79; }
+
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 13px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn-primary   { background: #1F4E79; color: white; }
+  .btn-primary:hover { opacity: 0.9; }
+  .btn-green     { background: #276749; color: white; margin-top: 12px; }
+  .btn-green:hover { opacity: 0.9; }
+  .btn-outline   { background: white; color: #1F4E79; border: 1.5px solid #1F4E79; margin-top: 8px; }
+  .btn-red       { background: #c53030; color: white; margin-top: 8px; }
+
+  /* Main app */
+  #app-screen { display: none; }
+
+  .card {
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  }
+  .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 14px; color: #1F4E79; }
+
+  /* Upload area */
+  .upload-area {
+    border: 2px dashed #b0c4de;
+    border-radius: 10px;
+    padding: 32px 16px;
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+    position: relative;
+  }
+  .upload-area:hover, .upload-area.dragover {
+    background: #EBF4FF;
+    border-color: #1F4E79;
+  }
+  .upload-area input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .upload-icon { font-size: 40px; margin-bottom: 10px; }
+  .upload-area p { color: #718096; font-size: 14px; }
+  .upload-area strong { color: #1F4E79; }
+
+  /* Camera button */
+  .camera-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 13px;
+    border: 1.5px solid #1F4E79;
+    border-radius: 8px;
+    background: white;
+    color: #1F4E79;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 10px;
+    position: relative;
+  }
+  .camera-btn input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+
+  /* Progress */
+  #progress-area { display: none; margin-top: 14px; }
+  .progress-bar-wrap {
+    background: #e2e8f0;
+    border-radius: 99px;
+    height: 8px;
+    overflow: hidden;
+    margin: 8px 0;
+  }
+  .progress-bar {
+    height: 100%;
+    background: #1F4E79;
+    border-radius: 99px;
+    width: 0%;
+    transition: width 0.4s;
+  }
+  #progress-label { font-size: 13px; color: #718096; }
+
+  /* Result */
+  #result-area { display: none; margin-top: 14px; }
+  .result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+  }
+  .result-header span { font-size: 14px; font-weight: 600; color: #276749; }
+  .badge {
+    background: #c6f6d5;
+    color: #276749;
+    padding: 3px 10px;
+    border-radius: 99px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .fields-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .fields-table tr:nth-child(even) td { background: #f7fafc; }
+  .fields-table td { padding: 7px 8px; border-bottom: 1px solid #e2e8f0; vertical-align: top; }
+  .fields-table td:first-child { color: #718096; width: 40%; font-weight: 500; }
+  .fields-table td:last-child  { color: #1a202c; word-break: break-word; }
+
+  /* Scan history */
+  .scan-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #e2e8f0;
+    font-size: 13px;
+  }
+  .scan-item:last-child { border-bottom: none; }
+  .scan-name { font-weight: 500; color: #1a202c; }
+  .scan-time { color: #a0aec0; font-size: 12px; margin-top: 2px; }
+  .scan-badge {
+    background: #ebf8ff;
+    color: #2b6cb0;
+    padding: 2px 8px;
+    border-radius: 99px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+  }
+
+  .empty-state { text-align: center; color: #a0aec0; padding: 24px 0; font-size: 14px; }
+
+  .error-msg { color: #c53030; font-size: 13px; margin-top: 8px; display: none; }
+  .success-msg { color: #276749; font-size: 13px; margin-top: 8px; display: none; }
+
+  .spinner {
+    display: inline-block;
+    width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .tab-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  .tab {
+    flex: 1;
+    padding: 10px;
+    border: 1.5px solid #cbd5e0;
+    border-radius: 8px;
+    background: white;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: center;
+    color: #718096;
+    transition: all 0.15s;
+  }
+  .tab.active {
+    background: #1F4E79;
+    color: white;
+    border-color: #1F4E79;
+  }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>OCR Form Scanner</h1>
+  <p>Scan application forms — extract all data to Excel</p>
+</div>
+
+<!-- Login -->
+<div class="container">
+<div id="login-screen">
+  <h2>Enter Password</h2>
+  <input type="password" id="pw-input" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
+  <button class="btn btn-primary" onclick="doLogin()">Login</button>
+  <div class="error-msg" id="login-error">Wrong password. Try again.</div>
+</div>
+
+<!-- Main App -->
+<div id="app-screen">
+
+  <div class="tab-bar">
+    <div class="tab active" onclick="switchTab('upload')">Upload / Scan</div>
+    <div class="tab" onclick="switchTab('history')">History</div>
+    <div class="tab" onclick="switchTab('export')">Export</div>
+  </div>
+
+  <!-- Upload Tab -->
+  <div class="tab-content active" id="tab-upload">
+    <div class="card">
+      <h2>Upload a Form</h2>
+
+      <div class="upload-area" id="drop-zone">
+        <input type="file" id="file-input" accept=".pdf,.png,.jpg,.jpeg,.tiff,.tif,.bmp,.webp" onchange="handleFileSelect(this)">
+        <div class="upload-icon">📄</div>
+        <p><strong>Tap to choose file</strong></p>
+        <p>PDF, PNG, JPG, TIFF, BMP, WEBP</p>
+      </div>
+
+      <button class="camera-btn">
+        <input type="file" accept="image/*" capture="environment" onchange="handleFileSelect(this)">
+        📷 Take Photo with Camera
+      </button>
+
+      <div id="progress-area">
+        <div id="progress-label">Processing...</div>
+        <div class="progress-bar-wrap">
+          <div class="progress-bar" id="progress-bar"></div>
+        </div>
+      </div>
+
+      <div id="result-area">
+        <div class="result-header">
+          <span id="result-filename"></span>
+          <span class="badge" id="result-count"></span>
+        </div>
+        <table class="fields-table" id="fields-table"></table>
+      </div>
+
+      <div class="error-msg" id="upload-error"></div>
+    </div>
+  </div>
+
+  <!-- History Tab -->
+  <div class="tab-content" id="tab-history">
+    <div class="card">
+      <h2>Scanned Forms</h2>
+      <div id="history-list"><div class="empty-state">No scans yet</div></div>
+      <button class="btn btn-outline" onclick="loadHistory()" style="margin-top:12px">Refresh</button>
+    </div>
+  </div>
+
+  <!-- Export Tab -->
+  <div class="tab-content" id="tab-export">
+    <div class="card">
+      <h2>Download Excel</h2>
+      <p style="font-size:14px;color:#718096;margin-bottom:16px">
+        Downloads all scanned forms as a single Excel file — one row per form, all fields as columns.
+      </p>
+      <button class="btn btn-green" onclick="downloadExcel()">
+        Download Excel File
+      </button>
+      <div class="success-msg" id="export-success">Download started!</div>
+      <div class="error-msg" id="export-error">No scans to export yet.</div>
+
+      <hr style="margin:20px 0;border:none;border-top:1px solid #e2e8f0">
+      <p style="font-size:13px;color:#718096;margin-bottom:10px">Danger zone</p>
+      <button class="btn btn-red" onclick="clearAll()">Clear All Scans</button>
+      <div class="error-msg" id="clear-msg" style="color:#c53030"></div>
+    </div>
+  </div>
+
+</div><!-- end app-screen -->
+</div><!-- end container -->
+
+<script>
+  let PASSWORD = "";
+
+  function doLogin() {
+    const pw = document.getElementById("pw-input").value.trim();
+    if (!pw) return;
+    fetch("/login", {
+      method: "POST",
+      body: new URLSearchParams({ password: pw })
+    }).then(r => {
+      if (r.ok) {
+        PASSWORD = pw;
+        document.getElementById("login-screen").style.display = "none";
+        document.getElementById("app-screen").style.display = "block";
+        loadHistory();
+      } else {
+        document.getElementById("login-error").style.display = "block";
+      }
+    }).catch(() => {
+      document.getElementById("login-error").style.display = "block";
+    });
+  }
+
+  function switchTab(name) {
+    document.querySelectorAll(".tab").forEach((t,i) => {
+      const names = ["upload","history","export"];
+      t.classList.toggle("active", names[i] === name);
+    });
+    document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+    document.getElementById("tab-" + name).classList.add("active");
+    if (name === "history") loadHistory();
+  }
+
+  function handleFileSelect(input) {
+    if (!input.files || !input.files[0]) return;
+    uploadFile(input.files[0]);
+  }
+
+  // drag and drop
+  const dz = document.getElementById("drop-zone");
+  dz.addEventListener("dragover", e => { e.preventDefault(); dz.classList.add("dragover"); });
+  dz.addEventListener("dragleave", () => dz.classList.remove("dragover"));
+  dz.addEventListener("drop", e => {
+    e.preventDefault(); dz.classList.remove("dragover");
+    if (e.dataTransfer.files[0]) uploadFile(e.dataTransfer.files[0]);
+  });
+
+  function setProgress(pct, label) {
+    document.getElementById("progress-area").style.display = "block";
+    document.getElementById("progress-bar").style.width = pct + "%";
+    document.getElementById("progress-label").textContent = label;
+  }
+
+  function uploadFile(file) {
+    document.getElementById("result-area").style.display = "none";
+    document.getElementById("upload-error").style.display = "none";
+    document.getElementById("upload-error").textContent = "";
+
+    setProgress(20, "Uploading...");
+
+    const fd = new FormData();
+    fd.append("password", PASSWORD);
+    fd.append("file", file);
+
+    setProgress(40, "Running OCR via Claude AI — usually 10-20 seconds...");
+
+    fetch("/upload", { method: "POST", body: fd })
+      .then(r => r.json().then(data => ({ ok: r.ok, data })))
+      .then(({ ok, data }) => {
+        document.getElementById("progress-area").style.display = "none";
+        if (!ok) {
+          showError("upload-error", data.detail || "Upload failed");
+          return;
+        }
+        showResult(data);
+      })
+      .catch(err => {
+        document.getElementById("progress-area").style.display = "none";
+        showError("upload-error", "Error: " + err.message);
+      });
+  }
+
+  function showResult(data) {
+    document.getElementById("result-area").style.display = "block";
+    document.getElementById("result-filename").textContent = data.filename;
+    document.getElementById("result-count").textContent = data.count + " fields";
+
+    const table = document.getElementById("fields-table");
+    table.innerHTML = "";
+    for (const [k, v] of Object.entries(data.fields)) {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `<td>${k}</td><td>${v || "<em style='color:#a0aec0'>blank</em>"}</td>`;
+      table.appendChild(tr);
+    }
+  }
+
+  function loadHistory() {
+    fetch("/scans?password=" + encodeURIComponent(PASSWORD))
+      .then(r => r.json())
+      .then(scans => {
+        const el = document.getElementById("history-list");
+        if (!scans.length) {
+          el.innerHTML = '<div class="empty-state">No scans yet</div>';
+          return;
+        }
+        el.innerHTML = scans.map(s => `
+          <div class="scan-item">
+            <div>
+              <div class="scan-name">${s.filename}</div>
+              <div class="scan-time">${s.scanned_at}</div>
+            </div>
+            <span class="scan-badge">${s.filetype}</span>
+          </div>
+        `).join("");
+      });
+  }
+
+  function downloadExcel() {
+    document.getElementById("export-success").style.display = "none";
+    document.getElementById("export-error").style.display = "none";
+    const url = "/download-excel?password=" + encodeURIComponent(PASSWORD);
+    fetch(url).then(r => {
+      if (!r.ok) { showError("export-error", "No scans to export yet."); return; }
+      return r.blob().then(blob => {
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "scans.xlsx";
+        a.click();
+        document.getElementById("export-success").style.display = "block";
+      });
+    });
+  }
+
+  function clearAll() {
+    if (!confirm("Delete ALL scan records? This cannot be undone.")) return;
+    fetch("/clear?password=" + encodeURIComponent(PASSWORD), { method: "DELETE" })
+      .then(r => r.json())
+      .then(() => {
+        document.getElementById("clear-msg").textContent = "All records cleared.";
+        document.getElementById("clear-msg").style.display = "block";
+        loadHistory();
+      });
+  }
+
+  function showError(id, msg) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.style.display = "block";
+  }
+</script>
+</body>
+</html>
